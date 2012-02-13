@@ -1,5 +1,5 @@
 var dgram  = require('dgram')
-  , util    = require('util')
+  , util   = require('util')
   , net    = require('net')
   , config = require('./config')
   , fs     = require('fs')
@@ -21,15 +21,22 @@ var stats = {
   }
 };
 
-config.configFile(process.argv[2], function (config, oldConfig) {
-  if (! config.debug && debugInt) {
+config.configFile(process.argv[2], function (config, oldConfig) 
+{
+  if (! config.debug && debugInt) 
+  {
     clearInterval(debugInt); 
     debugInt = false;
   }
 
-  if (config.debug) {
-    if (debugInt !== undefined) { clearInterval(debugInt); }
-    debugInt = setInterval(function () { 
+  if (config.debug) 
+  {
+    if (debugInt !== undefined) { 
+      clearInterval(debugInt); 
+    }
+
+    debugInt = setInterval(function () 
+    { 
       util.log("Counters:\n" + util.inspect(counters) + "\nTimers:\n" + util.inspect(timers));
     }, config.debugInterval || 10000);
   }
@@ -39,7 +46,8 @@ config.configFile(process.argv[2], function (config, oldConfig) {
     // key counting
     var keyFlushInterval = Number((config.keyFlush && config.keyFlush.interval) || 0);
 
-    server = dgram.createSocket('udp4', function (msg, rinfo) {
+    server = dgram.createSocket('udp4', function (msg, rinfo) 
+    {
       if (config.dumpMessages) { util.log(msg.toString()); }
       var bits = msg.toString().split(':');
       var key = bits.shift()
@@ -47,10 +55,12 @@ config.configFile(process.argv[2], function (config, oldConfig) {
                     .replace(/\//g, '-')
                     .replace(/[^a-zA-Z_\-0-9\.]/g, '');
 
-      if (keyFlushInterval > 0) {
+      if (keyFlushInterval > 0) 
+      {
         if (! keyCounter[key]) {
           keyCounter[key] = 0;
         }
+
         keyCounter[key] += 1;
       }
 
@@ -58,20 +68,26 @@ config.configFile(process.argv[2], function (config, oldConfig) {
         bits.push("1");
       }
 
-      for (var i = 0; i < bits.length; i++) {
+      for (var i = 0; i < bits.length; i++) 
+      {
         var sampleRate = 1;
         var fields = bits[i].split("|");
-        if (fields[1] === undefined) {
-            util.log('Bad line: ' + fields);
-            stats['messages']['bad_lines_seen']++;
-            continue;
+
+        if (fields[1] === undefined) 
+        {
+          util.log('Bad line: ' + fields);
+          stats['messages']['bad_lines_seen']++;
+          continue;
         }
-        if (fields[1].trim() == "ms") {
+        if (fields[1].trim() == "ms") 
+        {
           if (! timers[key]) {
             timers[key] = [];
           }
           timers[key].push(Number(fields[0] || 0));
-        } else {
+        } 
+        else 
+        {
           if (fields[2] && fields[2].match(/^@([\d\.]+)/)) {
             sampleRate = Number(fields[2].match(/^@([\d\.]+)/)[1]);
           }
@@ -85,14 +101,16 @@ config.configFile(process.argv[2], function (config, oldConfig) {
       stats['messages']['last_msg_seen'] = Math.round(new Date().getTime() / 1000);
     });
 
-    mgmtServer = net.createServer(function(stream) {
+    mgmtServer = net.createServer(function(stream) 
+    {
       stream.setEncoding('ascii');
 
       stream.on('data', function(data) {
         var cmdline = data.trim().split(" ");
         var cmd = cmdline.shift();
 
-        switch(cmd) {
+        switch(cmd) 
+        {
           case "help":
             stream.write("Commands: stats, counters, timers, delcounters, deltimers, quit\n\n");
             break;
@@ -103,8 +121,10 @@ config.configFile(process.argv[2], function (config, oldConfig) {
 
             stream.write("uptime: " + uptime + "\n");
 
-            for (group in stats) {
-              for (metric in stats[group]) {
+            for (group in stats) 
+            {
+              for (metric in stats[group]) 
+              {
                 var val;
 
                 if (metric.match("^last_")) {
@@ -131,7 +151,8 @@ config.configFile(process.argv[2], function (config, oldConfig) {
             break;
 
           case "delcounters":
-            for (index in cmdline) {
+            for (index in cmdline) 
+            {
               delete counters[cmdline[index]];
               stream.write("deleted: " + cmdline[index] + "\n");
             }
@@ -139,7 +160,8 @@ config.configFile(process.argv[2], function (config, oldConfig) {
             break;
 
           case "deltimers":
-            for (index in cmdline) {
+            for (index in cmdline) 
+            {
               delete timers[cmdline[index]];
               stream.write("deleted: " + cmdline[index] + "\n");
             }
@@ -165,25 +187,28 @@ config.configFile(process.argv[2], function (config, oldConfig) {
 
     var flushInterval = Number(config.flushInterval || 10000);
 
-    flushInt = setInterval(function () {
+    flushInt = setInterval(function () 
+    {
       var statString = '';
       var ts = Math.round(new Date().getTime() / 1000);
       var numStats = 0;
       var key;
 
-      for (key in counters) {
-        var value = counters[key];
-        var valuePerSecond = value / (flushInterval / 1000); // calculate "per second" rate
+      for (key in counters) 
+      {
+        // var valuePerSecond = counters[key] / (flushInterval / 1000); // calculate "per second" rate
+        // statString += 'stats.'        + key + ' ' + valuePerSecond + ' ' + ts + "\n";
 
-        statString += 'stats.'        + key + ' ' + valuePerSecond + ' ' + ts + "\n";
-        statString += 'stats_counts.' + key + ' ' + value          + ' ' + ts + "\n";
+        statString += 'stats.counts.' + key + ' ' + counters[key] + ' ' + ts + "\n";
 
         counters[key] = 0;
         numStats += 1;
       }
 
-      for (key in timers) {
-        if (timers[key].length > 0) {
+      for (key in timers) 
+      {
+        if (timers[key].length > 0) 
+        {
           var pctThreshold = config.percentThreshold || 90;
           var values = timers[key].sort(function (a,b) { return a-b; });
           var count = values.length;
@@ -193,7 +218,8 @@ config.configFile(process.argv[2], function (config, oldConfig) {
           var mean = min;
           var maxAtThreshold = max;
 
-          if (count > 1) {
+          if (count > 1) 
+          {
             var thresholdIndex = Math.round(((100 - pctThreshold) / 100) * count);
             var numInThreshold = count - thresholdIndex;
             values = values.slice(0, numInThreshold);
@@ -201,7 +227,8 @@ config.configFile(process.argv[2], function (config, oldConfig) {
 
             // average the remaining timings
             var sum = 0;
-            for (var i = 0; i < numInThreshold; i++) {
+            for (var i = 0; i < numInThreshold; i++) 
+            {
               sum += values[i];
             }
 
@@ -224,20 +251,28 @@ config.configFile(process.argv[2], function (config, oldConfig) {
 
       statString += 'statsd.numStats ' + numStats + ' ' + ts + "\n";
       
-      if (config.graphiteHost) {
-        try {
+      if (config.graphiteHost) 
+      {
+        try 
+        {
           var graphite = net.createConnection(config.graphitePort, config.graphiteHost);
-          graphite.addListener('error', function(connectionException){
+
+          graphite.addListener('error', function(connectionException)
+          {
             if (config.debug) {
               util.log(connectionException);
             }
           });
-          graphite.on('connect', function() {
+
+          graphite.on('connect', function() 
+          {
             this.write(statString);
             this.end();
             stats['graphite']['last_flush'] = Math.round(new Date().getTime() / 1000);
           });
-        } catch(e){
+        } 
+        catch(e)
+        {
           if (config.debug) {
             util.log(e);
           }
@@ -247,11 +282,13 @@ config.configFile(process.argv[2], function (config, oldConfig) {
 
     }, flushInterval);
 
-    if (keyFlushInterval > 0) {
+    if (keyFlushInterval > 0) 
+    {
       var keyFlushPercent = Number((config.keyFlush && config.keyFlush.percent) || 100);
       var keyFlushLog = (config.keyFlush && config.keyFlush.log) || "stdout";
 
-      keyFlushInt = setInterval(function () {
+      keyFlushInt = setInterval(function () 
+      {
         var key;
         var sortedKeys = [];
 
@@ -280,4 +317,3 @@ config.configFile(process.argv[2], function (config, oldConfig) {
 
   }
 });
-
